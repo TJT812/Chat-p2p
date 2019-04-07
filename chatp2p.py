@@ -33,31 +33,42 @@ print('Subnet:', ipaddress.IPv4Address(int(host) & int(net.netmask)))
 print('Host:', ipaddress.IPv4Address(int(host) & int(net.hostmask)))
 print('Broadcast:', net.broadcast_address)
 
-cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-cs.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
-cs.sendto(b'This is a test', (str(net.broadcast_address), PORT))
-print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
-#cs.setblocking(1)
-cs.bind((IP, PORT))
+def send():
+    cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    cs.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    #cs.bind((IP, PORT))
+
+    cs.sendto(b'This is a test', (str(net.broadcast_address), PORT))
+    print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
+    cs.close()
+        #cs.setblocking(1)
+
 def getshit():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    s.bind((IP, PORT))
+    print('yo')
     while True:
-        data, addres = s.recvfrom(1024)
+        try:
+            data, addres = s.recvfrom(2048)
 
-        print(addres)
+            print(addres)
     #if(addres == net.broadcast_address):
-        print('done received:', data)
+            print('done received:', data)
+        except KeyboardInterrupt:
+            print('input was interrupted by user')
+            break
+
+send()
+threading.Thread(target=getshit()).start()
 
 
 
 
-mySocket =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#mySocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-#mySocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-s.bind((getADDR(), PORT))
+
+
 
 
 
