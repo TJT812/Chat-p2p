@@ -2,6 +2,7 @@ import socket
 import time
 import ipaddress
 import subprocess
+import threading
 
 PORT = 0
 
@@ -37,14 +38,18 @@ cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 cs.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
 cs.sendto(b'This is a test', (str(net.broadcast_address), PORT))
 print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
-cs.setblocking(1)
+#cs.setblocking(1)
+cs.bind((IP, PORT))
+def getshit():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    while True:
+        data, addres = s.recvfrom(1024)
 
-data, addres = cs.recvfrom(1024)
-print(addres)
-if(addres == net.broadcast_address):
-
-
-    print('done received', data)
+        print(addres)
+    #if(addres == net.broadcast_address):
+        print('done received:', data)
 
 
 
