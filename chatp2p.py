@@ -3,8 +3,12 @@ import time
 import ipaddress
 import subprocess
 import threading
+import select
 
 PORT = 0
+
+
+
 
 def getADDR():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -22,6 +26,9 @@ def getNETMASK(ip):
     mask = proc.stdout.readline().rstrip().split(b':')[-1].replace(b' ',b'').decode()
     return mask
 
+
+
+
 IP = getADDR()
 MASK = getNETMASK(IP)
 
@@ -33,11 +40,26 @@ print('Subnet:', ipaddress.IPv4Address(int(host) & int(net.netmask)))
 print('Host:', ipaddress.IPv4Address(int(host) & int(net.hostmask)))
 print('Broadcast:', net.broadcast_address)
 
+def udp_first_connection():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+    s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    s.bind((IP, PORT))
+    cs.sendto(b'This is a test', (str(net.broadcast_address), PORT))
+    print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
+    s.settimeout(10.0)
+    while True:
+        data, addres = s.recvfrom(2048)
+        if(data):
+            print(data)
+
+
+
+
 def send():
     cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     cs.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
-    #cs.bind((IP, PORT))
+#    cs.bind((socket.INADDR_ANY, PORT))
 
     cs.sendto(b'This is a test', (str(net.broadcast_address), PORT))
     print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
@@ -46,26 +68,33 @@ def send():
 
 def getshit():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
-    s.bind((IP, PORT))
-    print('yo')
+    s.bind(('', 0))
+    #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    s.settimeout(10.0)
     while True:
-        try:
-            data, addres = s.recvfrom(2048)
+        data, addres = s.recvfrom(2048)
 
-            print(addres)
+        if(data):
+            print(data)
+#    while True:
+    #    try:
+        #    whatReady = select.select([s], [], [])
+
+    #        data, addres = s.recvfrom(2048)
+    #            print(addres)
     #if(addres == net.broadcast_address):
-            print('done received:', data)
-        except KeyboardInterrupt:
-            print('input was interrupted by user')
-            break
+    #            print('done received:', data)
+    #    except KeyboardInterrupt:
+    #        print('input was interrupted by user')
+    #        break
 
-send()
-threading.Thread(target=getshit()).start()
+#send()
+#getshit()
+#threading.Thread(target=getshit(), daemon=True).start()
 
 
-
+ udp_first_connection()
 
 
 
