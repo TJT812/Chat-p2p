@@ -49,19 +49,17 @@ def udp_first_connection(name):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
     s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
     s.bind((IP, PORT))
-    s.sendto(b'This is a test', (str(net.broadcast_address), PORT))
+    my_packet = [name]
+    s.sendto(bytes(''.join(my_packet)), (str(net.broadcast_address), PORT)))
     print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
     s.settimeout(20.0)
     while True:
-        data, addres = s.recvfrom(2048)
-        if(data) and not(addres[0] == IP):
-            newdata, newaddr = s.recvfrom()
-            if(newdata) and not(IP == newaddr[0]):
-                peers.append((str(newdata) + ',' + newaddr[0]).split(','))
-                print(peers)
-                my_packet = [name]
-                print(datetime.now().strftime('%H:%M') + ' ' + newdata + '(' + IP + ') connected')
-                s.sendto(bytes(''.join(my_packet)), (newaddr))
+        newdata, newaddr = s.recvfrom(BUFFER)
+        if(newdata) and not(IP == newaddr[0]):
+            peers.append((str(newdata) + ',' + newaddr[0]).split(','))
+            print(peers)
+            print(datetime.now().strftime('%H:%M') + ' ' + newdata + '(' + newaddr[0] + ') connected')
+            s.sendto(bytes(''.join(my_packet)), (newaddr))
 
 def chat(name):
 
@@ -126,7 +124,7 @@ def chat(name):
 
 if __name__ == '__main__':
     print('After entering chat type quit() to end session \nEnter your name:')
-    name = input()
+#    name = input()
     udp_first_connection(name)
     #chat(name)
 
