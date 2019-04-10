@@ -56,16 +56,18 @@ def chat(name):
     server.bind((IP, PORT))
     server.listen(5)
 
-    inputs = [ socket_new_conn]
+    inputs = [server]
     outputs = [  ]
 
     peers = []
 
     while(inputs):
+        print('1')
         readable, writable, exceptional = select.select(inputs, outputs, inputs)
+        print('1')
         for s in readable:
             if s is socket_new_conn:
-                s.setblocking(0)
+                print('1')
                 newdata, newaddr = s.recvfrom()
                 if(newdata) and not(IP == newaddr[0]):
                     peers.append((str(newdata) + ',' + newaddr[0]).split(','))
@@ -80,6 +82,7 @@ def chat(name):
             else:
                 data, address = s.recvfrom(BUFFER)
                 if data:
+                    print(datetime.now().strftime('%H:%M') + ' from ' + address[0] + ': ' + data)
                     if s not in outputs:
                         outputs.append(s)
                 else:
@@ -97,7 +100,7 @@ def chat(name):
                 if(message == 'quit()'):
                     message = ''
                 s.sendto(bytes(message), (str(net.broadcast_address), PORT))
-                print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ')
+                print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + message)
 
 if __name__ == '__main__':
     print('After entering chat type quit() to end session \nEnter your name:')
