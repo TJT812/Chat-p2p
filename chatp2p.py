@@ -4,8 +4,10 @@ import ipaddress
 import subprocess
 import threading
 import select
+import queue
 
-PORT = 0
+PORT = 9999
+BUFFER = 2048
 
 
 
@@ -40,19 +42,89 @@ print('Subnet:', ipaddress.IPv4Address(int(host) & int(net.netmask)))
 print('Host:', ipaddress.IPv4Address(int(host) & int(net.hostmask)))
 print('Broadcast:', net.broadcast_address)
 
+def chat(name):
+
+
+    socket_new_conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
+    socket_new_conn.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    socket_new_conn.bind((IP, PORT))
+    socket_new_conn.setblocking(0)
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
+    socket_new_conn.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
+    server.setblocking(0)
+    server.bind((IP, PORT))
+    server.listen(5)
+
+    inputs = [ socket_new_conn]
+    outputs = [  ]
+
+    peers = []
+
+    while(inputs):
+        readable, writable, exceptional = select.select(inputs, outputs, inputs)
+        for s in readable:
+            if s is socket_new_conn:
+                s.setblocking(0)
+                newdata, newaddr = s.recvfrom()
+                if(newdata) and not(IP == newaddr[0]):
+                    peers.append((str(newdata) + ',' + newaddr[0]).split(','))
+                #    print(peers)
+                    my_packet = [name]
+                    print(datetime.now().strftime('%H:%M') + ' ' + newdata + '(' + IP + ') connected')
+                    s.sendto(bytes(''.join(my_packet)), (newaddr))
+            if s is server:
+                connection, client_address = s.accept()
+                connection.setblocking(0)
+                inputs.append(connection)
+            else:
+                data, address = s.recvfrom(BUFFER)
+                if data:
+                    if s not in outputs:
+                        outputs.append(s)
+                else:
+                #    print >>sys.stderr, 'closing', client_address, 'after reading no data'
+                    if s in outputs:
+                        outputs.remove(s)
+                    print(datetime.now().strftime('%H:%M') + ' ' + newdata + '(' + IP + ') disconnected')
+                    inputs.remove(s)
+                    s.close()
+
+
+        for s in writable:
+            if s is server:
+                message = input()
+                if(message == 'quit()'):
+                    message = ''
+                s.sendto(bytes(message), (str(net.broadcast_address), PORT))
+                print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ')
+
+if __name__ == '__main__':
+    print('After entering chat type quit() to end session \nEnter your name:')
+    name = input()
+    chat(name)
+
+
+
+
+
+
+
+
+
+
+
 def udp_first_connection():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
     s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
-    s.bind((IP, PORT))
-    cs.sendto(b'This is a test', (str(net.broadcast_address), PORT))
+    s.bind((IP, 9999))
+    s.sendto(b'This is a test', (str(net.broadcast_address), PORT))
     print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
     s.settimeout(10.0)
     while True:
         data, addres = s.recvfrom(2048)
-        if(data):
+        if(data) and not(addres[0] == IP):
             print(data)
-
-
 
 
 def send():
@@ -77,29 +149,12 @@ def getshit():
 
         if(data):
             print(data)
-#    while True:
-    #    try:
-        #    whatReady = select.select([s], [], [])
-
-    #        data, addres = s.recvfrom(2048)
-    #            print(addres)
-    #if(addres == net.broadcast_address):
-    #            print('done received:', data)
-    #    except KeyboardInterrupt:
-    #        print('input was interrupted by user')
-    #        break
 
 #send()
 #getshit()
 #threading.Thread(target=getshit(), daemon=True).start()
 
-
- udp_first_connection()
-
-
-
-
-
+udp_first_connection()
 
 
 
