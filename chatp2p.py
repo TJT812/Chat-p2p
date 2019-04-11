@@ -92,7 +92,7 @@ def connect_to_new(name):
         req = input()
         if(req != 'quit()'):
             print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
-            req = name + ': ' + req
+            req = name + '(' + IP + '): ' +  req
             for peer in peers:
                 peer[2].send(bytes(req, 'utf-8'))
         else:
@@ -130,15 +130,22 @@ def chat(name):
                 try:
                     data, address = s.recvfrom(BUFFER)
                     if data:
-                        print(datetime.now().strftime('%H:%M') + ' from ' + str(address[0]) + ': ' + data.decode('utf-8'))
+                        print(datetime.now().strftime('%H:%M') +  data.decode('utf-8'))
                         if s not in outputs:
                             outputs.append(s)
-                except ConnectionResetError::
+                    else:
+                        if s in outputs:
+                            outputs.remove(s)
+                        print(datetime.now().strftime('%H:%M') + ' '  + '(' + IP + ') disconnected')
+                        inputs.remove(s)
+                        update_peers()
+                        s.close()
+                except ConnectionResetError:
                 #else:
                 #    print >>sys.stderr, 'closing', client_address, 'after reading no data'
                     if s in outputs:
                         outputs.remove(s)
-                    print(datetime.now().strftime('%H:%M') + ' ' + newdata + '(' + IP + ') disconnected')
+                    print(datetime.now().strftime('%H:%M') + ' '  + '(' + IP + ') disconnected')
                     inputs.remove(s)
                     update_peers()
                     s.close()
@@ -146,10 +153,22 @@ def chat(name):
 
         for s in writable:
             if s is server:
-                message = input()
-                if(message == 'quit()'):
-                    message = ''
-                s.sendto(bytes(message, 'utf-8'), (str(net.broadcast_address), PORT))
+                print('Enter your message:')
+                req = input()
+                if(req != 'quit()'):
+                    print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
+                    req = name + '(' + IP + '): ' +  req
+                    for peer in peers:
+                        peer[2].send(bytes(req, 'utf-8'))
+                else:
+                    req = ''
+                    for peer in peers:
+                        peer[2].send(bytes(req, 'utf-8'))
+                        peer[2].close()
+                        peers.remove(peer)
+                    os._exit(1)
+
+                s.sendto(bytes(req, 'utf-8'), (str(net.broadcast_address), PORT))
                 print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + message)
 
 if __name__ == '__main__':
