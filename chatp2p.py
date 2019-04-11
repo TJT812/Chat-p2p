@@ -71,19 +71,22 @@ def udp_first_connection(name):
             print(datetime.now().strftime('%H:%M') + ' ' + peer[1] + '(' + peer[0] + ') connected')
             s.sendto(bytes(','.join(my_packet), 'utf-8'), (str(net.broadcast_address), PORT))
             addr_received_previous = newaddr
+            update_peers()
 
 
 
 
 
-
-def connect_to_new(name):
+def update_peers():
     global peers
     for peer in peers:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
         peer.append(s)
         s.bind((IP, PORT))
         s.connect((peer[0], PORT))
+
+def connect_to_new(name):
+    global peers
 
     print(datetime.now().strftime('%H:%M') + ' ' + 'You connected to chat')
     print(peers)
@@ -140,6 +143,7 @@ def chat(name):
                         outputs.remove(s)
                     print(datetime.now().strftime('%H:%M') + ' ' + newdata + '(' + IP + ') disconnected')
                     inputs.remove(s)
+                    update_peers()
                     s.close()
 
 
