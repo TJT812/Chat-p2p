@@ -74,21 +74,18 @@ def udp_first_connection(name):
             update_peers()
 
 
-
-
-
 def update_peers():
     global peers
     for peer in peers:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
         peer.append(s)
-        s.bind((IP, PORT))
+        s.bind((IP, 0))
         s.connect((peer[0], PORT))
 
 def connect_to_new(name):
     global peers
 
-    print(datetime.now().strftime('%H:%M') + ' ' + 'You connected to chat')
+
     print(peers)
     while(True):
         print('Enter your message:')
@@ -121,23 +118,23 @@ def chat(name):
     peers = []
 
     while(inputs):
-        print('1')
-        readable, writable, exceptional = select.select(inputs, outputs, inputs)
-        print('2')
-        for s in readable:
-            print('3')
 
+        readable, writable, exceptional = select.select(inputs, outputs, inputs)
+        for s in readable:
+            print('1')
             if s is server:
                 connection, client_address = s.accept()
                 connection.setblocking(0)
                 inputs.append(connection)
             else:
-                data, address = s.recvfrom(BUFFER)
-                if data:
-                    print(datetime.now().strftime('%H:%M') + ' from ' + address[0] + ': ' + data)
-                    if s not in outputs:
-                        outputs.append(s)
-                else:
+                try:
+                    data, address = s.recvfrom(BUFFER)
+                    if data:
+                        print(datetime.now().strftime('%H:%M') + ' from ' + str(address[0]) + ': ' + data.decode('utf-8'))
+                        if s not in outputs:
+                            outputs.append(s)
+                except ConnectionResetError::
+                #else:
                 #    print >>sys.stderr, 'closing', client_address, 'after reading no data'
                     if s in outputs:
                         outputs.remove(s)
@@ -152,7 +149,7 @@ def chat(name):
                 message = input()
                 if(message == 'quit()'):
                     message = ''
-                s.sendto(bytes(message), (str(net.broadcast_address), PORT))
+                s.sendto(bytes(message, 'utf-8'), (str(net.broadcast_address), PORT))
                 print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + message)
 
 if __name__ == '__main__':
@@ -160,6 +157,7 @@ if __name__ == '__main__':
     name = input()
     threading.Thread(target=chat, args=(name,)).start()
     threading.Thread(target=udp_first_connection, args=(name,)).start()
+    print(datetime.now().strftime('%H:%M') + ' ' + 'You connected to chat')
     time.sleep(1.0)
     threading.Thread(target=connect_to_new, args=(name,)).start()
 
