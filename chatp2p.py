@@ -130,7 +130,7 @@ def chat(name):
                 try:
                     data, address = s.recvfrom(BUFFER)
                     if data:
-                        print(datetime.now().strftime('%H:%M') +  data.decode('utf-8'))
+                        print(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
                         if s not in outputs:
                             outputs.append(s)
                     else:
