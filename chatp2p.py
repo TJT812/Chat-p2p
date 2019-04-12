@@ -71,7 +71,7 @@ def udp_first_connection(name):
         #    print('awsd')
             peer = newdata.decode('utf-8').split(',')
             peers.append(peer)
-            print(peers)
+            #print(peers)
             print(datetime.now().strftime('%H:%M') + ' ' + peer[1] + '(' + peer[0] + ') connected')
             s.sendto(bytes(','.join(my_packet), 'utf-8'), (str(net.broadcast_address), PORT))
             addr_received_previous = newaddr
@@ -89,17 +89,17 @@ def update_peers():
             try:
                 s.connect((peer[0], PORT))
 
-                if(need_history):
+                if(need_history) and not(peers == []):
                     try:
                         message_history = s.recv(BUFFER)
                         for message in message_history.decode('utf-8').split(';'):
                             print(message)
                         need_history = False
-                    except ConnectionResetError:
+                    except (ConnectionResetError):
                         continue
             except TimeoutError:
                 continue
-    print(peers)
+    #print(peers)
 
 
 def connect_to_new(name):
@@ -107,7 +107,7 @@ def connect_to_new(name):
     global messages
 
     while(True):
-        print(peers, 'tut')
+    #    print(peers, 'tut')
         print('Enter your message:')
         req = input()
         if(req != 'quit()'):
@@ -120,7 +120,6 @@ def connect_to_new(name):
                 except ConnectionResetError:
                     continue
         else:
-
             for peer in peers:
                 peer[2].shutdown(socket.SHUT_WR)
                 peer[2].close()
@@ -144,7 +143,7 @@ def chat(name):
 
         readable, writable, exceptional = select.select(inputs, outputs, inputs)
         for s in readable:
-            print('1')
+        #    print('1')
             if s is server:
                 connection, client_address = s.accept()
                 connection.setblocking(0)
@@ -166,7 +165,7 @@ def chat(name):
                             if(peer[0] == client_address[0]):
                                 client_name = peer[1]
                         print(datetime.now().strftime('%H:%M') + ' ' + client_name + '(' + client_address[0] + ') disconnected')
-                        print(s)
+                        #print(s)
                         for peer in peers:
                             if(client_address[0] == peer[0]):
                                 peer[2].close()
@@ -175,31 +174,44 @@ def chat(name):
                         s.shutdown(socket.SHUT_WR)
                         s.close()
 
-                        print(peers)
+                        #print(peers)
                         print('Enter your message:')
                 except ConnectionResetError:
-                    print(datetime.now().strftime('%H:%M') + ' '  + '(' + client_address[0] + ') disconnected')
+                    client_name = ''
+                    for peer in peers:
+                        if(peer[0] == client_address[0]):
+                            client_name = peer[1]
+                    print(datetime.now().strftime('%H:%M') + ' ' + client_name + '(' + client_address[0] + ') disconnected')
+                    #print(s)
+                    for peer in peers:
+                        if(client_address[0] == peer[0]):
+                            peer[2].close()
+                            peers.remove(peer)
                     inputs.remove(s)
                     s.shutdown(socket.SHUT_WR)
                     s.close()
 
-                    print(peers)
+                    #print(peers)
+                    print('Enter your message:')
 
 
         for s in writable:
             if s is server:
+                print('Enter your message:')
                 req = input()
                 if(req != 'quit()'):
                     print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
                     req = name + '(' + IP + '): ' +  req
                     messages.append(datetime.now().strftime('%H:%M') + ' ' + req)
                     for peer in peers:
-                        peer[2].send(bytes(req, 'utf-8'))
+                        try:
+                            peer[2].send(bytes(req, 'utf-8'))
+                        except ConnectionResetError:
+                            continue
                 else:
                     for peer in peers:
                         peer[2].shutdown(socket.SHUT_WR)
                         peer[2].close()
-
                     os._exit(1)
 
 
