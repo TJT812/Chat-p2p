@@ -47,6 +47,7 @@ print('Broadcast:', net.broadcast_address)
 
 
 peers = []
+messages = []
 def udp_first_connection(name):
     global peers
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
@@ -79,6 +80,7 @@ def udp_first_connection(name):
 
 def update_peers():
     global peers
+    need_history = True
     for peer in peers:
         if(len(peer) == 2):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
@@ -86,6 +88,13 @@ def update_peers():
             s.bind((IP, 0))
             try:
                 s.connect((peer[0], PORT))
+
+                if(need_history):
+                    message_history = s.recv(BUFFER)
+                    for message in message_history:
+                        print(message)
+                    need_history = False
+
             except TimeoutError:
                 continue
     print(peers)
@@ -93,7 +102,7 @@ def update_peers():
 
 def connect_to_new(name):
     global peers
-
+    global messages
 
     while(True):
         print(peers)
@@ -102,6 +111,7 @@ def connect_to_new(name):
         if(req != 'quit()'):
             print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
             req = name + '(' + IP + '): ' +  req
+            messages.append(datetime.now().strftime('%H:%M') + ' ' + req)
             for peer in peers:
                 try:
                     peer[2].send(bytes(req, 'utf-8'))
@@ -112,14 +122,12 @@ def connect_to_new(name):
             for peer in peers:
                 peer[2].shutdown(socket.SHUT_WR)
                 peer[2].close()
-            #    peers.remove(peer)
             os._exit(1)
 
 
 def chat(name):
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
-    #server.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
     server.setblocking(0)
     server.bind((IP, PORT))
     server.listen(5)
@@ -128,6 +136,7 @@ def chat(name):
     outputs = [  ]
 
     global peers
+    global messages
 
     while(inputs):
 
@@ -138,6 +147,8 @@ def chat(name):
                 connection, client_address = s.accept()
                 connection.setblocking(0)
                 inputs.append(connection)
+                s.send(bytes(messages, 'utf-8'))
+
             else:
                 try:
                     data, address = s.recvfrom(BUFFER)
@@ -145,8 +156,11 @@ def chat(name):
                         print(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
                         print('Enter your message:')
                     else:
-
-                        print(datetime.now().strftime('%H:%M') + ' '  + '(' + client_address[0] + ') disconnected')
+                        client_name = ''
+                        for peer in peers:
+                            if(peer[0] == client_address[0]):
+                                client_name = peer[1]
+                        print(datetime.now().strftime('%H:%M') + ' ' + client_name + '(' + client_address[0] + ') disconnected')
                         print(s)
                         for peer in peers:
                             if(client_address[0] == peer[0]):
@@ -157,8 +171,8 @@ def chat(name):
                         s.close()
 
                         print(peers)
+                        print('Enter your message:')
                 except ConnectionResetError:
-
                     print(datetime.now().strftime('%H:%M') + ' '  + '(' + client_address[0] + ') disconnected')
                     inputs.remove(s)
                     s.shutdown(socket.SHUT_WR)
@@ -169,11 +183,11 @@ def chat(name):
 
         for s in writable:
             if s is server:
-
                 req = input()
                 if(req != 'quit()'):
                     print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
                     req = name + '(' + IP + '): ' +  req
+                    messages.append(datetime.now().strftime('%H:%M') + ' ' + req)
                     for peer in peers:
                         peer[2].send(bytes(req, 'utf-8'))
                 else:
@@ -181,11 +195,9 @@ def chat(name):
                         peer[2].shutdown(socket.SHUT_WR)
                         peer[2].close()
 
-                    #    peers.remove(peer)
                     os._exit(1)
 
-                #s.sendto(bytes(req, 'utf-8'), (str(net.broadcast_address), PORT))
-                #print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + message)
+
 
 if __name__ == '__main__':
     print('After entering chat type quit() to end session \nEnter your name:')
