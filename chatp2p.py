@@ -92,7 +92,6 @@ def update_peers():
                 if(need_history):
                     try:
                         message_history = s.recv(BUFFER)
-                        s.setblocking(1)
                         for message in message_history.decode('utf-8').split(';'):
                             print(message)
                         need_history = False
@@ -108,7 +107,7 @@ def connect_to_new(name):
     global messages
 
     while(True):
-        print(peers)
+        print(peers, 'tut')
         print('Enter your message:')
         req = input()
         if(req != 'quit()'):
@@ -159,6 +158,7 @@ def chat(name):
                     data, address = s.recvfrom(BUFFER)
                     if(data):
                         print(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
+                        messages.append(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
                         print('Enter your message:')
                     else:
                         client_name = ''
