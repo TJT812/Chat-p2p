@@ -91,7 +91,7 @@ def update_peers():
 
                 if(need_history):
                     message_history = s.recv(BUFFER)
-                    for message in message_history:
+                    for message in message_history.decode('utf-8').split(';'):
                         print(message)
                     need_history = False
 
@@ -147,7 +147,8 @@ def chat(name):
                 connection, client_address = s.accept()
                 connection.setblocking(0)
                 inputs.append(connection)
-                s.send(bytes(messages, 'utf-8'))
+                if(messages):
+                    s.send(bytes(';'.join(messages), 'utf-8'))
 
             else:
                 try:
