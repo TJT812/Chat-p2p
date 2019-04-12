@@ -90,11 +90,14 @@ def update_peers():
                 s.connect((peer[0], PORT))
 
                 if(need_history):
-                    message_history = s.recv(BUFFER)
-                    for message in message_history.decode('utf-8').split(';'):
-                        print(message)
-                    need_history = False
-
+                    try:
+                        message_history = s.recv(BUFFER)
+                        s.setblocking(1)
+                        for message in message_history.decode('utf-8').split(';'):
+                            print(message)
+                        need_history = False
+                    except ConnectionResetError:
+                        continue
             except TimeoutError:
                 continue
     print(peers)
@@ -147,8 +150,9 @@ def chat(name):
                 connection, client_address = s.accept()
                 connection.setblocking(0)
                 inputs.append(connection)
+                #print(messages)
                 if(messages):
-                    s.send(bytes(';'.join(messages), 'utf-8'))
+                    connection.sendall(bytes(';'.join(messages), 'utf-8'))
 
             else:
                 try:
