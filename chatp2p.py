@@ -61,10 +61,13 @@ def udp_first_connection(name):
     print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
 
     #s.settimeout(10.0)
-    addr_received_previous = ''
+    addr_received_previous = ''   #### and (newaddr != addr_received_previous)
     while True:
         newdata, newaddr = s.recvfrom(BUFFER)
-        if(newdata) and not(IP == newaddr[0]) and (newaddr != addr_received_previous) and (newdata not in peers):
+
+        if(newdata) and not(IP == newaddr[0]) and ((newdata.decode('utf-8').split(',')[0]) not in [peer[0] for peer in peers]):
+        #    print('as' + (newdata.decode('utf-8').split(',')[0]) + '1asdas')
+        #    print('awsd')
             peer = newdata.decode('utf-8').split(',')
             peers.append(peer)
             print(peers)
@@ -77,30 +80,39 @@ def udp_first_connection(name):
 def update_peers():
     global peers
     for peer in peers:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
-        peer.append(s)
-        s.bind((IP, 0))
-        s.connect((peer[0], PORT))
+        if(len(peer) == 2):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
+            peer.append(s)
+            s.bind((IP, 0))
+            try:
+                s.connect((peer[0], PORT))
+            except TimeoutError:
+                continue
+    print(peers)
+
 
 def connect_to_new(name):
     global peers
 
 
-    print(peers)
     while(True):
+        print(peers)
         print('Enter your message:')
         req = input()
         if(req != 'quit()'):
             print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
             req = name + '(' + IP + '): ' +  req
             for peer in peers:
-                peer[2].send(bytes(req, 'utf-8'))
+                try:
+                    peer[2].send(bytes(req, 'utf-8'))
+                except ConnectionResetError:
+                    continue
         else:
-            req = ''
+
             for peer in peers:
-                peer[2].send(bytes(req, 'utf-8'))
+                peer[2].shutdown(socket.SHUT_WR)
                 peer[2].close()
-                peers.remove(peer)
+            #    peers.remove(peer)
             os._exit(1)
 
 
@@ -115,7 +127,7 @@ def chat(name):
     inputs = [server]
     outputs = [  ]
 
-    peers = []
+    global peers
 
     while(inputs):
 
@@ -129,31 +141,35 @@ def chat(name):
             else:
                 try:
                     data, address = s.recvfrom(BUFFER)
-                    if data:
+                    if(data):
                         print(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
-                        if s not in outputs:
-                            outputs.append(s)
+                        print('Enter your message:')
                     else:
-                        if s in outputs:
-                            outputs.remove(s)
-                        print(datetime.now().strftime('%H:%M') + ' '  + '(' + IP + ') disconnected')
+
+                        print(datetime.now().strftime('%H:%M') + ' '  + '(' + client_address[0] + ') disconnected')
+                        print(s)
+                        for peer in peers:
+                            if(client_address[0] == peer[0]):
+                                peer[2].close()
+                                peers.remove(peer)
                         inputs.remove(s)
-                        update_peers()
+                        s.shutdown(socket.SHUT_WR)
                         s.close()
+
+                        print(peers)
                 except ConnectionResetError:
-                #else:
-                #    print >>sys.stderr, 'closing', client_address, 'after reading no data'
-                    if s in outputs:
-                        outputs.remove(s)
-                    print(datetime.now().strftime('%H:%M') + ' '  + '(' + IP + ') disconnected')
+
+                    print(datetime.now().strftime('%H:%M') + ' '  + '(' + client_address[0] + ') disconnected')
                     inputs.remove(s)
-                    update_peers()
+                    s.shutdown(socket.SHUT_WR)
                     s.close()
+
+                    print(peers)
 
 
         for s in writable:
             if s is server:
-                print('Enter your message:')
+
                 req = input()
                 if(req != 'quit()'):
                     print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
@@ -161,15 +177,15 @@ def chat(name):
                     for peer in peers:
                         peer[2].send(bytes(req, 'utf-8'))
                 else:
-                    req = ''
                     for peer in peers:
-                        peer[2].send(bytes(req, 'utf-8'))
+                        peer[2].shutdown(socket.SHUT_WR)
                         peer[2].close()
-                        peers.remove(peer)
+
+                    #    peers.remove(peer)
                     os._exit(1)
 
-                s.sendto(bytes(req, 'utf-8'), (str(net.broadcast_address), PORT))
-                print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + message)
+                #s.sendto(bytes(req, 'utf-8'), (str(net.broadcast_address), PORT))
+                #print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + message)
 
 if __name__ == '__main__':
     print('After entering chat type quit() to end session \nEnter your name:')
@@ -212,7 +228,7 @@ def getshit():
     #s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
     s.settimeout(10.0)
     while True:
-        data, addres = s.recvfrom(2048)
+        data, addres = s.recvfrom(BUFFER)
 
         if(data):
             print(data)
