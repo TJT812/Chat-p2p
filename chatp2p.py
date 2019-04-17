@@ -7,9 +7,12 @@ import select
 import queue
 import time
 import os
+import pickle
 
 PORT = 9999
-BUFFER = 2048
+DEFAULT_PORT = 0
+BUFFER = 4096
+TIME_TO_GET_HISTORY = 2
 
 
 
@@ -48,18 +51,25 @@ print('Broadcast:', net.broadcast_address)
 
 peers = []
 messages = []
+time_connected = 0
 def udp_first_connection(name):
     global peers
+    global time_connected
+    global messages
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
     s.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
-    s.bind((IP, PORT))
+    try:
+        s.bind((IP, PORT))
+    except OSError:
+        os._exit(1)
     my_packet = [IP, name]
 
     s.sendto(bytes(','.join(my_packet), 'utf-8'), (str(net.broadcast_address), PORT))
-
+    time_connected = int(time.time())
+    messages.insert(0, time_connected)
     #print(peers)
 
-    print('sent from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
+    print('sending from', socket.getnameinfo(socket.getaddrinfo(IP, PORT)[0][4], socket.NI_DGRAM))
 
     #s.settimeout(10.0)
     addr_received_previous = ''   #### and (newaddr != addr_received_previous)
@@ -78,27 +88,30 @@ def udp_first_connection(name):
             update_peers()
 
 
+
 def update_peers():
     global peers
-    need_history = True
+    global inputs
     for peer in peers:
         if(len(peer) == 2):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=socket.IPPROTO_TCP)
             peer.append(s)
-            s.bind((IP, 0))
-            try:
-                s.connect((peer[0], PORT))
+            s.bind((IP, DEFAULT_PORT))
+            s.connect((peer[0], PORT))
 
+    '''        try:
+                s.connect((peer[0], PORT))
                 if(need_history) and not(peers == []):
                     try:
                         message_history = s.recv(BUFFER)
                         for message in message_history.decode('utf-8').split(';'):
                             print(message)
-                        need_history = False
                     except (ConnectionResetError):
                         continue
-            except TimeoutError:
+
+            except (TimeoutError):
                 continue
+                '''
     #print(peers)
 
 
@@ -112,6 +125,7 @@ def connect_to_new(name):
         req = input()
         if(req != 'quit()'):
             print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
+            print('sent 1')
             req = name + '(' + IP + '): ' +  req
             messages.append(datetime.now().strftime('%H:%M') + ' ' + req)
             for peer in peers:
@@ -134,10 +148,13 @@ def chat(name):
     server.listen(5)
 
     inputs = [server]
-    outputs = [  ]
+    outputs = []
+    history_suggestions = []
 
     global peers
     global messages
+    global time_connected
+    need_history = True
 
     while(inputs):
 
@@ -149,34 +166,33 @@ def chat(name):
                 connection.setblocking(0)
                 inputs.append(connection)
                 #print(messages)
-                if(messages):
-                    connection.sendall(bytes(';'.join(messages), 'utf-8'))
+                if(len(messages) > 1):
+                    messages_ready_to_send = pickle.dumps(messages)
+                    for peer in peers:
+                        if(client_address[0] == peer[0]):
+                            peer[2].sendall(messages_ready_to_send)
 
             else:
-                try:
-                    data, address = s.recvfrom(BUFFER)
-                    if(data):
-                        print(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
-                        messages.append(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
-                        print('Enter your message:')
-                    else:
-                        client_name = ''
-                        for peer in peers:
-                            if(peer[0] == client_address[0]):
-                                client_name = peer[1]
-                        print(datetime.now().strftime('%H:%M') + ' ' + client_name + '(' + client_address[0] + ') disconnected')
-                        #print(s)
-                        for peer in peers:
-                            if(client_address[0] == peer[0]):
-                                peer[2].close()
-                                peers.remove(peer)
-                        inputs.remove(s)
-                        s.shutdown(socket.SHUT_WR)
-                        s.close()
+                data, address = s.recvfrom(BUFFER)
+                if(data):
+                    try:
+                        
+                        if(need_history) and (isinstance(pickle.loads(data), list)):
+                            print('got it')
+                            if (int(time.time()) - time_connected < TIME_TO_GET_HISTORY):
+                                history_suggestions.append(pickle.loads(data))
+                                print(history_suggestions)
 
-                        #print(peers)
+                                print(sorted(history_suggestions, key=lambda x: x[0]))
+                                for i in range(1, len(history_suggestions[0])):
+                                    print(history_suggestions[0][i])
+                                need_history = False
+                    except pickle.UnpicklingError:
+                    #    print(peers)
+                        print(datetime.now().strftime('%H:%M') + ' ' +  data.decode('utf-8'))
+                        messages.append(datetime.now().strftime('%H:%M') + ' ' + data.decode('utf-8'))
                         print('Enter your message:')
-                except ConnectionResetError:
+                else:
                     client_name = ''
                     for peer in peers:
                         if(peer[0] == client_address[0]):
@@ -188,11 +204,12 @@ def chat(name):
                             peer[2].close()
                             peers.remove(peer)
                     inputs.remove(s)
-                    s.shutdown(socket.SHUT_WR)
+                    #s.shutdown(socket.SHUT_WR)
                     s.close()
 
-                    #print(peers)
+            #        print(peers)
                     print('Enter your message:')
+
 
 
         for s in writable:
@@ -203,11 +220,12 @@ def chat(name):
                     print(datetime.now().strftime('%H:%M') + ' ' + name + '(' + IP + '): ' + req)
                     req = name + '(' + IP + '): ' +  req
                     messages.append(datetime.now().strftime('%H:%M') + ' ' + req)
-                    for peer in peers:
-                        try:
-                            peer[2].send(bytes(req, 'utf-8'))
-                        except ConnectionResetError:
-                            continue
+                    s.send(bytes(req, 'utf-8'))
+                #    for peer in peers:
+                #        try:
+                #            peer[2].send(bytes(req, 'utf-8'))
+                #        except ConnectionResetError:
+                #            continue
                 else:
                     for peer in peers:
                         peer[2].shutdown(socket.SHUT_WR)
